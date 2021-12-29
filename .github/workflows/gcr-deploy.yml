@@ -1,0 +1,73 @@
+name: Google Cloud Run Deploy Developer
+# https://github.com/google-github-actions/setup-gcloud
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  PROJECT_ID: ${{ secrets.GCR_PROJECT }}
+  REGION: us-central1
+  SERVICE: dev-option-backend
+
+jobs:
+  build:
+    name: Build NestJS Dist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@main
+
+      - name: Setup Node.js (NPM)
+        uses: actions/setup-node@master
+        with:
+          node-version: '14.x'
+
+      - name: Use cached node_modules
+        uses: actions/cache@master
+        with:
+          path: node_modules
+          key: nodeModules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            nodeModules-
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          CI: true
+
+      - name: Build Development
+        run: npm run build
+
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCR_PROJECT }}
+          service_account_key: ${{ secrets.GCR_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Authorize Docker push
+        run: gcloud auth configure-docker
+
+      # Build the Docker image
+      - name: Build docker
+        run: |-
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} .
+
+      # Push the Docker image to Google Container Registry
+      - name: Publish image
+        run: |-
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |-
+          gcloud run deploy ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} \
+            --platform "managed" \
+            --quiet
+        env:
+          GOOGLE_API_KEY: ${{ secrets.DEV_GOOGLE_API_KEY }}
