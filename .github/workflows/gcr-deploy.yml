@@ -66,8 +66,7 @@ jobs:
         run: |-
           gcloud run deploy ${{ env.SERVICE }} \
             --region ${{ env.REGION }} \
+            --set-env-vars=GOOGLE_API_KEY=${{ secrets.DEV_GOOGLE_API_KEY }} \
             --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} \
             --platform "managed" \
             --quiet
-        env:
-          GOOGLE_API_KEY: ${{ secrets.DEV_GOOGLE_API_KEY }}
