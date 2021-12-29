@@ -5,7 +5,7 @@ import { google } from 'googleapis';
 @Injectable()
 export class YoutubeService {
   constructor(private configService: ConfigService) {}
-  async search(searchword: string) {
+  async search(searchword: string, page?: string) {
     const GOOGLE_API_KEY = this.configService.get<string>('GOOGLE_API_KEY');
     // initialize the Youtube API library
     const youtube = google.youtube({
@@ -15,7 +15,9 @@ export class YoutubeService {
     const res: any = await youtube.search.list({
       part: ['id, snippet'],
       q: searchword,
+      pageToken: page,
       maxResults: 25,
+      type: ['video'],
     });
     if (res) {
       return res.data;
